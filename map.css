@@ -67,6 +67,7 @@ circle {
     fill: var(--color);
 }
 
+
 .legend {
     display: flex;
     justify-content: space-between;
