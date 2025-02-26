@@ -1,16 +1,14 @@
 mapboxgl.accessToken = 'pk.eyJ1IjoibG9sMDA4IiwiYSI6ImNtN2NkMWo3YzBuanMybXB3OHIxaHF5M3EifQ.l3t2WZjb7XIK7lySSYacow';
 
-//global helper functions
+// Global helper functions
 function getCoords(station) {
     const point = map.project(new mapboxgl.LngLat(+station.lon, +station.lat));
     return { cx: point.x, cy: point.y };
 }
-
 function minutesSinceMidnight(date) {
     return date.getHours() * 60 + date.getMinutes();
- }
-
- function filterByMinute(tripsByMinute, minute) {
+}
+function filterByMinute(tripsByMinute, minute) {
     let minMinute = (minute - 60 + 1440) % 1440;
     let maxMinute = (minute + 60) % 1440;
   
@@ -22,13 +20,12 @@ function minutesSinceMidnight(date) {
       return tripsByMinute.slice(minMinute, maxMinute).flat();
     }
 }
-
 function formatTime(minutes) {
     const date = new Date(0, 0, 0, 0, minutes);
     return date.toLocaleString('en-US', { timeStyle: 'short' });
 }
 
-// slider variables
+// Slider variables
 let timeFilter = -1;
 const timeSlider = document.getElementById('time-slider');
 const selectedTime = document.getElementById('selected-time');
@@ -49,7 +46,6 @@ map.on('load', () => {
         type: 'geojson',
         data: 'https://bostonopendata-boston.opendata.arcgis.com/datasets/boston::existing-bike-network-2022.geojson?...'
     });
-
     map.addLayer({
         id: 'boston-bike-lanes',
         type: 'line',
@@ -60,12 +56,10 @@ map.on('load', () => {
             'line-opacity': 0.6       
         }
     });
-
     map.addSource('cambridge_route', {
         type: 'geojson',
         data: 'https://raw.githubusercontent.com/cambridgegis/cambridgegis_data/main/Recreation/Bike_Facilities/RECREATION_BikeFacilities.geojson'
     });
-
     map.addLayer({
         id: 'cambridge-bike-lanes',
         type: 'line',
@@ -77,7 +71,6 @@ map.on('load', () => {
         }
     });
 
-    
     let stationFlow = d3.scaleQuantize().domain([0, 1]).range([0, 0.5, 1]);
     const jsonUrl = 'https://dsc106.com/labs/lab07/data/bluebikes-stations.json';
     d3.json(jsonUrl).then(jsonData => {
@@ -92,16 +85,17 @@ map.on('load', () => {
             .attr('stroke', 'white')
             .attr('stroke-width', 1)
             .attr('opacity', 0.8)
-            .style("--departure-ratio", d => stationFlow(d.departures / d.totalTraffic)) ;
+            .style("--departure-ratio", d => {
+                let ratio = (d.totalTraffic && d.totalTraffic > 0) ? d.departures / d.totalTraffic : 0.5;
+                return stationFlow(ratio);
+            });
 
-        // Function to update circle positions when the map moves/zooms
         function updatePositions() {
             circles
-            .attr('cx', d => getCoords(d).cx)  // Set the x-position using projected coordinates
-            .attr('cy', d => getCoords(d).cy); // Set the y-position using projected coordinates
+            .attr('cx', d => getCoords(d).cx)
+            .attr('cy', d => getCoords(d).cy);
         }   
   
-        // Initial position update when map loads
         updatePositions();
         map.on('move', updatePositions);
         map.on('zoom', updatePositions);
@@ -111,7 +105,6 @@ map.on('load', () => {
         const csvUrl = 'https://dsc106.com/labs/lab07/data/bluebikes-traffic-2024-03.csv';
         d3.csv(csvUrl).then(csvData => {
             let trips = csvData;
-
             let departures = d3.rollup(
                 trips, 
                 v => v.length, 
@@ -124,18 +117,14 @@ map.on('load', () => {
                 d => d.end_station_id
             );
             let arrivalsByMinute = Array.from({ length: 1440 }, () => []); 
-
             for (let trip of trips) {
                 trip.started_at = new Date(trip.started_at);
                 trip.ended_at = new Date(trip.ended_at);
-
                 let startedMinutes = minutesSinceMidnight(trip.started_at);
                 departuresByMinute[startedMinutes].push(trip);
-
                 let endedMinutes = minutesSinceMidnight(trip.ended_at);
                 arrivalsByMinute[endedMinutes].push(trip);
             }
-
             stations.forEach(station => {
                 let id = station.short_name;
                 station.arrivals = arrivals.get(id) ?? 0;
@@ -149,7 +138,10 @@ map.on('load', () => {
 
             circles
                 .attr('r', d => radiusScale(d.totalTraffic))
-                .style("--departure-ratio", d => stationFlow(d.departures / d.totalTraffic)) 
+                .style("--departure-ratio", d => {
+                    let ratio = (d.totalTraffic && d.totalTraffic > 0) ? d.departures / d.totalTraffic : 0.5;
+                    return stationFlow(ratio);
+                })
                 .each(function(d) {
                     d3.select(this)
                         .append('title')
@@ -164,8 +156,8 @@ map.on('load', () => {
                 );
                 filteredDepartures = d3.rollup(
                     filterByMinute(departuresByMinute, timeFilter),
-                     v => v.length,
-                     d => d.end_station_id
+                    v => v.length,
+                    d => d.end_station_id
                 );
 
                 filteredStations = stations.map(station => {
@@ -184,7 +176,10 @@ map.on('load', () => {
                 circles
                     .data(filteredStations)
                     .attr('r', d => radiusScale(d.totalTraffic))
-                    .style("--departure-ratio", d => stationFlow(d.departures / d.totalTraffic))
+                    .style("--departure-ratio", d => {
+                        let ratio = (d.totalTraffic && d.totalTraffic > 0) ? d.departures / d.totalTraffic : 0.5;
+                        return stationFlow(ratio);
+                    })
                     .each(function(d) {
                         d3.select(this)
                             .append('title')
